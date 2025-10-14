@@ -4,12 +4,10 @@
     <title>请假系统</title>
     <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
 
-    <!-- 引入 layui 的 CSS 和 JS -->
     <link rel="stylesheet" href="https://cdn.staticfile.org/layui/2.8.18/css/layui.css">
     <script src="https://cdn.staticfile.org/layui/2.8.18/layui.js"></script>
 
     <script>
-        // 获取Cookie函数
         function getCookie(name) {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
@@ -17,7 +15,6 @@
             return null;
         }
 
-        // 验证authKey函数
         async function verifyAuthKey() {
             try {
                 const authKey = getCookie('authKey');
@@ -52,32 +49,21 @@
             }
         }
 
-        // 验证失败处理函数
         function handleAuthFailed() {
             document.body.innerHTML = '';
             document.body.style.background = '#fff';
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 3000);
+            window.location.href = 'login.html';
         }
 
-        // 页面加载前验证authKey
         document.addEventListener('DOMContentLoaded', function() {
             verifyAuthKey();
         });
-
-        // 格式化日期时间为 yyyy-MM-dd HH:mm:ss
-        function formatDatetimeLocal(datetimeValue) {
-            if (!datetimeValue) return '';
-            return datetimeValue;
-        }
 
         function formatDatetimeLocalToDate(datetimeValue) {
             if (!datetimeValue) return '';
             return datetimeValue.substring(0, 10);
         }
 
-        // 从localStorage加载表单数据
         function loadFormData() {
             try {
                 const savedData = localStorage.getItem('leaveFormData');
@@ -85,7 +71,6 @@
 
                 const formData = JSON.parse(savedData);
 
-                // 填充文本输入框
                 if (formData.name) document.getElementById("name").value = formData.name;
                 if (formData.code) document.getElementById("code").value = formData.code;
                 if (formData.phone) document.getElementById("mobile").value = formData.phone;
@@ -100,10 +85,8 @@
                 if (formData.office) document.getElementById("office").value = formData.office;
                 if (formData.opinion) document.getElementById("opinion").value = formData.opinion;
 
-                // 填充下拉框
                 if (formData.type) document.getElementById("select").value = formData.type;
 
-                // 填充单选按钮
                 if (formData.gender) {
                     $('input[name="radio_1"][value="' + formData.gender + '"]').prop('checked', true);
                 }
@@ -117,13 +100,11 @@
                     outSchool();
                 }
 
-                // 填充日期时间
                 if (formData.start_date) document.getElementById("startTimeLocal").value = formData.start_date;
                 if (formData.end_date) document.getElementById("endTimeLocal").value = formData.end_date;
                 if (formData.write_time) document.getElementById("writeDatetimeInput").value = formData.write_time;
                 if (formData.accept) document.getElementById("acceptDatetimeInput").value = formData.accept;
 
-                // 更新请假天数
                 updateDays();
 
                 console.log('已从localStorage恢复表单数据');
@@ -132,7 +113,6 @@
             }
         }
 
-        // 保存表单数据
         function saveFormData() {
             var formData = {
                 name: document.getElementById("name").value,
@@ -163,22 +143,12 @@
                 accept: document.getElementById("acceptDatetimeInput").value,
                 opinion: document.getElementById("opinion").value
             };
-
-            // 验证必填项
-            if (!formData.name) {
-                alert('请填写学生姓名');
-                return;
-            }
-            if (!formData.code) {
-                alert('请填写学号');
-                return;
-            }
+            
             if (isNaN(calculateDaysDifference(document.getElementById("startTimeLocal").value, document.getElementById("endTimeLocal").value))) {
                 alert('请假开始时间与请假结束时间有误');
                 return;
             }
 
-            // 保存到 localStorage
             localStorage.setItem('leaveFormData', JSON.stringify(formData));
             window.location.href = "./content.html"
         }
@@ -214,7 +184,6 @@
             }
         }
 
-        // 清除保存的数据
         function clearSavedData() {
             if (confirm('确定要清除保存的请假数据吗？')) {
                 localStorage.removeItem('leaveFormData');
@@ -223,7 +192,6 @@
             }
         }
 
-        // 更新请假天数
         function updateDays() {
             var startTime = document.getElementById("startTimeLocal").value;
             var endTime = document.getElementById("endTimeLocal").value;
@@ -251,13 +219,11 @@
             }
         }
 
-        // 页面加载完成后初始化
         window.onload = function () {
-            // 使用 layui 的 laydate 模块
+
             layui.use('laydate', function(){
                 var laydate = layui.laydate;
 
-                // 请假开始时间选择器（不选秒，只到分钟）
                 laydate.render({
                     elem: '#startTimeLocal',
                     type: 'datetime',
@@ -267,7 +233,6 @@
                     }
                 });
 
-                // 请假结束时间选择器（不选秒，只到分钟）
                 laydate.render({
                     elem: '#endTimeLocal',
                     type: 'datetime',
@@ -277,14 +242,12 @@
                     }
                 });
 
-                // 拟稿时间选择器（精确到秒）
                 laydate.render({
                     elem: '#writeDatetimeInput',
                     type: 'datetime',
                     format: 'yyyy-MM-dd HH:mm:ss'
                 });
 
-                // 通过时间选择器（精确到秒）
                 laydate.render({
                     elem: '#acceptDatetimeInput',
                     type: 'datetime',
@@ -292,7 +255,6 @@
                 });
             });
 
-            // 加载之前保存的表单数据
             loadFormData();
         };
 

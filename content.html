@@ -3,27 +3,19 @@
 <head>
     <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
     <script>
-        // 获取Cookie函数
         function getCookie(name) {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
             if (parts.length === 2) return parts.pop().split(';').shift();
             return null;
         }
-
-        // 验证authKey函数
         async function verifyAuthKey() {
             try {
-                // 获取Cookie中的authKey
                 const authKey = getCookie('authKey');
-
-                // 如果authKey不存在
                 if (!authKey) {
                     console.warn('未找到authKey');
                     return false;
                 }
-
-                // 从secret.json获取正确的key
                 const response = await fetch('secret.json');
                 if (!response.ok) {
                     console.error('无法加载secret.json');
@@ -32,14 +24,10 @@
 
                 const data = await response.json();
                 const correctKey = data.key;
-
-                // 比较authKey与正确的key
                 if (authKey !== correctKey) {
                     console.warn('authKey验证失败');
                     return false;
                 }
-
-                // 验证成功
                 console.log('authKey验证成功');
                 return true;
 
@@ -48,42 +36,32 @@
                 return false;
             }
         }
-
-        // 验证失败处理函数 - 跳转到登录页面
         function handleAuthFailed() {
-            // 隐藏页面内容
             document.body.innerHTML = '';
             document.body.style.background = '#fff';
             window.location.href = 'login.html';
         }
-
-        // 页面加载时执行
         window.onload = async function () {
-            // 首先验证authKey
             const isValid = await verifyAuthKey();
             if (!isValid) {
                 handleAuthFailed();
-                return; // 验证失败，停止执行后续代码
+                return;
             }
-
-            // 验证成功，继续原有逻辑
-            // 优先尝试从localStorage获取数据
             var savedData = localStorage.getItem('leaveFormData');
 
             if (savedData) {
-                // 如果localStorage中有数据，使用localStorage的数据
                 try {
                     var data = JSON.parse(savedData);
                     displayData(data);
                 } catch (e) {
                     alert('没有找到请假数据');
+                    window.location.href = 'form.html';
                 }
             } else {
                 alert('没有找到请假数据');
+                window.location.href = 'form.html';
             }
         };
-
-        // 显示数据到页面
         function displayData(data) {
             document.title = data.name + "-" + data.write_time.substring(0, data.write_time.indexOf(" ")).replaceAll("-", "");
             document.getElementById("label_2").innerHTML = data.name || '';
@@ -577,7 +555,6 @@
     </div>
 </div>
 
-<!-- 底部按钮 -->
 <div class="o2_form_mobile_actions"
      style="height: 4em;overflow: hidden; border-top: 1px solid #dfdfdf; display: block; position: absolute; bottom: 0px; background: #ffffff; width: 100%; z-index:100;">
     <div style="margin: 0em 0.5em;">
