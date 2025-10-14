@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script>
+        // 获取Cookie函数
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // 验证authKey函数
+        async function verifyAuthKey() {
+            try {
+                // 获取Cookie中的authKey
+                const authKey = getCookie('authKey');
+
+                // 如果authKey不存在
+                if (!authKey) {
+                    console.warn('authKey不存在');
+                    handleAuthFailed();
+                    return;
+                }
+
+                // 从secret.json获取正确的key
+                const response = await fetch('secret.json');
+                if (!response.ok) {
+                    console.error('无法加载secret.json');
+                    handleAuthFailed();
+                    return;
+                }
+
+                const data = await response.json();
+                const correctKey = data.key;
+
+                // 比较authKey与正确的key
+                if (authKey !== correctKey) {
+                    console.warn('authKey不匹配');
+                    handleAuthFailed();
+                    return;
+                }
+
+                // 验证成功
+                console.log('authKey验证成功');
+
+            } catch (error) {
+                console.error('验证过程出错:', error);
+                handleAuthFailed();
+            }
+        }
+
+        // 验证失败处理函数
+        function handleAuthFailed() {
+            // 隐藏页面内容
+            document.body.innerHTML = '';
+            document.body.style.background = '#fff';
+
+            // 3秒后关闭页面
+            setTimeout(() => {
+                window.close();
+                // 如果window.close()失败，重定向到登录页面
+                if (!window.closed) {
+                    window.location.href = 'login.html';
+                }
+            }, 3000);
+        }
+
+        // 页面加载前验证authKey
+        document.addEventListener('DOMContentLoaded', function() {
+            verifyAuthKey();
+        });
+
+        // datetime-local格式转换为 yyyy-MM-dd HH:mm:ss
+        function formatDatetimeLocal(datetimeLocalValue) {
+            if (!datetimeLocalValue) return '';
+            // datetime-local格式: 2024-03-15T14:30:00
+            // 目标格式: 2024-03-15 14:30:00
+            if (datetimeLocalValue.length < 19) {
+                datetimeLocalValue = datetimeLocalValue.concat(':00');
+            }
+            return datetimeLocalValue.replace('T', ' ');
+        }
+
+        function formatDatetimeLocalToDate(datetimeLocalValue) {
+            if (!datetimeLocalValue) return '';
+            // datetime-local格式: 2024-03-15T14:30:00
+            // 目标格式: 2024-03-15 14:30:00
+            return datetimeLocalValue.substring(0, datetimeLocalValue.indexOf('T'));
+        }
+
+        // 保存表单数据
+        function saveFormData() {
+            // 收集所有表单数据
+            var formData = {
+                name: document.getElementById("name").value,
+                write_time: formatDatetimeLocal(document.getElementById("writeDatetimeInput").value),
+                write_date: formatDatetimeLocalToDate(document.getElementById("writeDatetimeInput").value),
+                code: document.getElementById("code").value,
+                phone: document.getElementById("mobile").value,
+                dept: document.getElementById("dept").value,
+                major: document.getElementById("major").value,
+                gender: $('input[name="radio_1"]:checked').val() || '',
+                home: document.getElementById("home").value,
+                home_no: document.getElementById("homeNo").value,
+                parent: document.getElementById("parent").value,
+                parent_phone: document.getElementById("parentMobile").value,
+                type: document.getElementById("select").value,
+                start_date: formatDatetimeLocal(document.getElementById("startTimeLocal").value),
+                end_date: formatDatetimeLocal(document.getElementById("endTimeLocal").value),
+                days: calculateDaysDifference(formatDatetimeLocal(document.getElementById("startTimeLocal").value), formatDatetimeLocal(document.getElementById("endTimeLocal").value)),
+                reason: document.getElementById("reason").value,
+                is_leave: $('input[name="radio_3"]:checked').val() || '',
+                province: document.getElementById("province").value,
+                city: document.getElementById("city").value,
+                address: document.getElementById("address").value,
+                thing: document.getElementById("thing").value,
+                is_rest: $('input[name="radio_4"]:checked').val() || '',
+                teacher: document.getElementById("teacher").value,
+                office: document.getElementById("office").value,
+                accept: formatDatetimeLocal(document.getElementById("writeDatetimeInput").value),
+                opinion: document.getElementById("opinion").value
+            };
+
+            // 验证必填项
+            if (!formData.name) {
+                alert('请填写学生姓名');
+                return;
+            }
+            if (!formData.code) {
+                alert('请填写学号');
+                return;
+            }
+            if (!formData.code) {
+                alert('请填写学号');
+                return;
+            }
+            if (isNaN(calculateDaysDifference(formatDatetimeLocal(document.getElementById("startTimeLocal").value), formatDatetimeLocal(document.getElementById("endTimeLocal").value)))) {
+                alert('请假开始时间与请假结束时间有误');
+                return;
+            }
+
+            // 保存到 localStorage
+            localStorage.setItem('leaveFormData', JSON.stringify(formData));
+            window.location.href = "./content.html"
+        }
+
+        function calculateDaysDifference(startDate, endDate) {
+            // 将字符串转换为Date对象（如果需要）
+            const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
+            const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+            if (start > end) {
+                return NaN;
+            }
+
+            // 计算时间差（毫秒）
+            const diffMs = end - start;
+
+            // 转换为小时
+            const diffHours = diffMs / (1000 * 60 * 60);
+
+            // 应用特殊规则
+            if (diffHours < 6) {
+                return 0.5;
+            } else if (diffHours < 30) {
+                return 1;
+            } else {
+                // 对于超过30小时的情况
+                // 每完整的24小时算1天，剩余部分按规则计算
+                const fullDays = Math.floor(diffHours / 24);
+                const remainingHours = diffHours % 24;
+
+                let additionalDays = 0;
+                if (remainingHours < 6) {
+                    additionalDays = 0.5;
+                } else {
+                    additionalDays = 1;
+                }
+                if (fullDays > 10) {
+                    return NaN;
+                }
+                return (fullDays + additionalDays).toString();
+            }
+        }
+
+        // 清除保存的数据
+        function clearSavedData() {
+            if (confirm('确定要清除保存的请假数据吗？')) {
+                localStorage.removeItem('leaveFormData');
+                alert('数据已清除');
+                location.reload();
+            }
+        }
+
+        // 页面加载完成后初始化（已通过authKey验证）
+        window.onload = function () {
+            // 添加事件监听器
+            document.getElementById("startTimeLocal").addEventListener('change', function() {
+                var days = calculateDaysDifference(formatDatetimeLocal(document.getElementById("startTimeLocal").value), formatDatetimeLocal(document.getElementById("endTimeLocal").value));
+                if (!isNaN(days)) {
+                    document.getElementById("days").innerHTML = days;
+                } else {
+                    document.getElementById("days").innerHTML = '';
+                }
+            });
+            document.getElementById("endTimeLocal").addEventListener('change', function() {
+                var days = calculateDaysDifference(formatDatetimeLocal(document.getElementById("startTimeLocal").value), formatDatetimeLocal(document.getElementById("endTimeLocal").value));
+                if (!isNaN(days)) {
+                    document.getElementById("days").innerHTML = days;
+                } else {
+                    document.getElementById("days").innerHTML = '';
+                }
+            });
+        };
+
+    </script>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" type="text/css" href="./style.css" charset="UTF-8">
+    <link rel="stylesheet" href="./mBoxNotice.css" charset="UTF-8">
+    <link rel="stylesheet" href="./mBoxTooltip.css" charset="UTF-8">
+    <link rel="icon" href="data:;">
+
+    <meta content="width=device-width, initial-scale=1.0,user-scalable=0" name="viewport">
+    <meta content="yes" name="apple-mobile-web-app-capable">
+    <meta content="black" name="apple-mobile-web-app-status-bar-style">
+    <meta content="telephone=no" name="format-detection">
+</head>
+<body style="overflow: hidden; margin:0px;height: 100%;width: 100%;">
+<div style="-webkit-overflow-scrolling: touch; overflow: auto; position: absolute; bottom: 4em;top: 0px;left: 0px;width: 100%;">
+
+    <div id="appContent" class="appContent" style="overflow: hidden; -webkit-transform: translateZ(0); ">
+        <div style="width: 100%; height: 100%; overflow: auto; background-color: rgb(255, 255, 255);">
+            <div style="min-height: 100%; font-size: 14px; overflow: hidden; background-color: rgb(240, 240, 240); user-select: text;">
+                <div class="css css8d83b6318c3b4252b4039b0c006de157" mwftype="form"
+                     id="8d83b631-8c3b-4252-b403-9b0c006de157_undefined" style="background-color: rgb(240, 240, 240);">
+                    <div id="div" mwftype="div" style="margin: auto;">
+                        <div id="label" mwftype="label"
+                             style="height: 40px; background-color: rgb(255, 255, 255); line-height: 40px; padding: 0px 15px; color: rgb(60, 118, 183); font-size: 16px; font-weight: bold; border-bottom: 0px solid rgb(204, 204, 204); text-align: center;">
+                            本科生外出请假
+                        </div>
+                        <div id="tab" mwftype="tab" style="">
+                            <div name="MWFcontentNodeContainer"
+                                 style="line-height: normal; clear: both; overflow: hidden;">
+                                <div style="overflow: hidden; display: block; background-color: transparent; opacity: 1;">
+                                    <div id="tab_tab$Content" mwftype="tab$Content" style="padding: 10px 0px;">
+                                        <div id="div_3" mwftype="div"
+                                             style="background-color: rgb(255, 255, 255); border: 1px solid rgb(204, 204, 204);">
+                                            <div mwftype="label" id="label_5"
+                                                 style="height: 40px; background-color: rgb(255, 255, 255); line-height: 40px; padding: 0px 15px; color: rgb(60, 118, 183); font-size: 18px; font-weight: bold; border-bottom: 0px solid rgb(204, 204, 204);">
+                                                基本信息
+                                            </div>
+                                            <div id="table_3" mwftype="table"
+                                                 style="margin-bottom: 10px; margin-top: 10px;">
+                                                <table width="100%" align="center" border="0" cellspacing="0"
+                                                       cellpadding="5"
+                                                       style="border-collapse: separate; border-top: 1px solid rgb(0, 0, 0); border-left: 1px solid rgb(0, 0, 0);">
+                                                    <tbody>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_12"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_27" style="">学生姓名</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_14" colspan="1"
+                                                            rowspan="1"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border-width: 0px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="name" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_4"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_8" style="">学号</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_8"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="code" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_52"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_15" style="">手机号码</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_53"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="mobile" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td id="table_3_table$Td" mwftype="table$Td"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 200px; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_20" style="">性别</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_24"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);"
+                                                            colspan="1" rowspan="1">
+                                                            <div style="display: inline; margin-right: 20px;">
+                                                                <input type="radio" name="radio_1" value="男"><span
+                                                                    style="cursor: default;">男</span>
+                                                                <input type="radio" name="radio_1" value="女"><span
+                                                                    style="cursor: default;">女</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_58"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_3" style="">所在学院</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_59"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="dept" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_5"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_10" style="">年级专业</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_10"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="major" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_64"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_43" style="">现住公寓名称
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_65"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="home" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_13"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_42" style="">现住宿舍号</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_15"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="homeNo" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_70"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_38" style="">家长姓名</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_71"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="parent" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_76"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_39" style="">家长联系电话
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_77"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="parentMobile" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_37"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_36" style="">请假类型</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_38"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="border: 0px solid rgb(204, 204, 204); margin-top: 5px; color: rgb(102, 102, 102); font-size: 18px; height: 26px; text-align: right;">
+                                                                <select id="select"
+                                                                        style="height: 26px; font-size: 14px; margin-right: 12px;">
+                                                                    <option value=""></option>
+                                                                    <option value="事假">事假</option>
+                                                                    <option value="病假">病假</option>
+                                                                    <option value="实习">实习</option>
+                                                                    <option value="假期离呼">假期离呼</option>
+                                                                    <option value="其他">其他</option>
+                                                                </select>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_82"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_21" style="">请假开始时间
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_83"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right; cursor: pointer;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="startTimeLocal" type="datetime-local"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 14px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_88"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_22" style="">请假结束时间
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_89"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJ cRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height:29px; float: right; cursor: pointer;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="endTimeLocal" type="datetime-local"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 14px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_11"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_12"
+                                                                 style="float: left; margin-top: 8px;">共多少天
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_16"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div id="days" style="overflow: visible; position: relative; margin-right: 0px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px; text-align: center; margin-top: 10px;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_29"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div id="label_7" mwftype="label" style="">请假详细原因
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_31"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="position: relative; padding-right: 2px; border: 0px solid rgb(204, 204, 204);">
+                                                                <input id="reason" type="text"
+                                                                          style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;"></>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_94"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_37" style="">
+                                                                请假期间是否离校
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_95"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="display: inline; margin-right: 20px;">
+                                                                <input type="radio" name="radio_3" value="是"><span
+                                                                    style="cursor: default;">是</span>
+                                                                <input type="radio" name="radio_3" value="否"><span
+                                                                    style="cursor: default;">否</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_7"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_11" style="">目的地</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_9"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="border: 0px solid rgb(204, 204, 204); color: rgb(102, 102, 102); font-size: 18px; margin-top: 5px; height: 26px; text-align: right;">
+                                                                <select id="province" style="margin-right: 12px;">
+                                                                    <option value=""></option>
+                                                                    <option value="北京市">北京市</option>
+                                                                    <option value="天津市">天津市</option>
+                                                                    <option value="上海市">上海市</option>
+                                                                    <option value="重庆市">重庆市</option>
+                                                                    <option value="河北省">河北省</option>
+                                                                    <option value="内蒙古自治区">内蒙古自治区</option>
+                                                                    <option value="山西省">山西省</option>
+                                                                    <option value="辽宁省">辽宁省</option>
+                                                                    <option value="吉林省">吉林省</option>
+                                                                    <option value="黑龙江省">黑龙江省</option>
+                                                                    <option value="江苏省">江苏省</option>
+                                                                    <option value="浙江省">浙江省</option>
+                                                                    <option value="安徽省">安徽省</option>
+                                                                    <option value="福建省">福建省</option>
+                                                                    <option value="江西省">江西省</option>
+                                                                    <option value="山东省">山东省</option>
+                                                                    <option value="河南省">河南省</option>
+                                                                    <option value="湖北省">湖北省</option>
+                                                                    <option value="湖南省">湖南省</option>
+                                                                    <option value="广东省">广东省</option>
+                                                                    <option value="甘肃省">甘肃省</option>
+                                                                    <option value="四川省">四川省</option>
+                                                                    <option value="贵州省">贵州省</option>
+                                                                    <option value="海南省">海南省</option>
+                                                                    <option value="云南省">云南省</option>
+                                                                    <option value="青海省">青海省</option>
+                                                                    <option value="陕西省">陕西省</option>
+                                                                    <option value="广西壮族自治区">广西壮族自治区
+                                                                    </option>
+                                                                    <option value="西藏自治区">西藏自治区</option>
+                                                                    <option value="宁夏回族自治区">宁夏回族自治区
+                                                                    </option>
+                                                                    <option value="新疆维吾尔自治区">新疆维吾尔自治区
+                                                                    </option>
+                                                                    <option value="澳门特别行政区">澳门特别行政区
+                                                                    </option>
+                                                                    <option value="香港特别行政区">香港特别行政区
+                                                                    </option>
+                                                                    <option value="台湾省">台湾省</option>
+                                                                </select>
+                                                            </div>
+                                                            <div style="border: 0px solid rgb(204, 204, 204); color: rgb(102, 102, 102); font-size: 18px; margin-top: 5px; height: 26px; text-align: right;">
+                                                                <select id="city" style="margin-right: 12px;">
+                                                                    <option value=""></option>
+                                                                </select>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_100"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div id="label_28" mwftype="label" style="">详细地址</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_101"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="address" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td id="table_3_table$Td_2" mwftype="table$Td"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_14" style="">出行方式</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_25"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="thing" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td id="table_3_table$Td_6" mwftype="table$Td"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_40" style="">
+                                                                请假期间是否回校住宿
+                                                            </div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_27"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="display: inline; margin-right: 20px;">
+                                                                <input type="radio" name="radio_4" value="是"><span
+                                                                    style="cursor: default;">是</span>
+                                                                <input type="radio" name="radio_4" value="否"><span
+                                                                    style="cursor: default;">否</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    <!-- 拟稿时间 - 使用 datetime-local，精确到秒 -->
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_20"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_45" style="">拟稿时间</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_21" colspan="1"
+                                                            rowspan="1"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <!-- datetime-local 输入框，step="1" 精确到秒 -->
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px; margin-top: 5px;">
+                                                                <input id="writeDatetimeInput" type="datetime-local" step="1"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 14px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_22"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_46" style="">教师姓名</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_23" colspan="1"
+                                                            rowspan="1"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border-width: 0px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="teacher" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_18"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_47" style="">教师所属院系</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_19" colspan="1"
+                                                            rowspan="1"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border-width: 0px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="office" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    <!-- 通过时间 - 使用 datetime-local，精确到秒 -->
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_30"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_48" style="">通过时间</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_32" colspan="1"
+                                                            rowspan="1"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <!-- datetime-local 输入框，step="1" 精确到秒 -->
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border: 0px solid rgb(204, 204, 204); line-height: 26px; margin-top: 5px;">
+                                                                <input id="acceptDatetimeInput" type="datetime-local" step="1"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 14px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_40"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(51, 51, 51); border-bottom: 1px solid rgb(0, 0, 0); height: 36px; font-size: 16px; width: 30%; line-height: 36px; text-align: left; font-weight: bold; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div mwftype="label" id="label_50" style="">处理意见</div>
+                                                        </td>
+                                                        <td mwftype="table$Td" id="table_3_table$Td_41" colspan="1"
+                                                            rowspan="1"
+                                                            style="background-color: rgb(255, 255, 255); color: rgb(102, 102, 102); font-size: 18px; border-bottom: 1px solid rgb(0, 0, 0); text-align: right; border-right: 1px solid rgb(0, 0, 0);">
+                                                            <div style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAAdCAYAAAC53EGZAAAA80lEQVR42mNgGAWjYBSMAjwASURqtADi/0D8H4gFkNQwIKkZBcMXLAbiv1BFlUD8H0mNAJIaBiQ1o2D4g0VQ/BeqKB+JXwCkhgFJzSgY/mABFP+FKsoD4udAfACIfUD8AUkNA5KaUTD8wTwgPgRVlAPE+4F4LxLfB0kNA5KaUTD8wVwg3gdVlA3Ee4D4HxDvR+LvR1IzCoY/mAPEe6CKMoF4FxD/B+LdSPw9SGpGwfAHM4F4J1RRBhBvB+L/QLwdib8LSc0oGP5gBhBvRVL0D4i3IvG3IKkZBaMASdFWJD5ckQCSmlEwCkbBKBgFo2AUYAIAJcRIXzv8qfMAAAAASUVORK5CYII=') center center no-repeat; width: 18px; height: 29px; float: right;"></div>
+                                                            <div style="overflow: hidden; position: relative; margin-right: 20px; padding-right: 4px; border-width: 0px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); line-height: 26px;">
+                                                                <input id="opinion" type="text"
+                                                                       style="background: transparent; width: 100%; border-width: 0px 0px 1px; border-bottom-style: solid; border-bottom-color: rgb(204, 204, 204); height: 26px; color: rgb(102, 102, 102); font-size: 18px; float: right; text-align: right;">
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 保存按钮 -->
+<div class="o2_form_mobile_actions"
+     style="height: 4em;overflow: hidden; border-top: 1px solid #dfdfdf; display: block; position: absolute; bottom: 0px; background: #ffffff; width: 100%; z-index:100;">
+    <div style="margin: 0 0.5em;">
+        <div onclick="saveFormData()"
+             style="height: 3em; float: left; font-size: 1em; margin: 0.5em; color: rgb(255, 255, 255); text-align: center; background: rgb(50, 150, 250); line-height: 3em; border-radius: 5px; border: 1px solid rgb(50, 150, 250); width: calc(49% - 1em); cursor: pointer;">
+            保存
+        </div>
+        <div onclick="clearSavedData()"
+             style="height: 3em; float: right; font-size: 1em; margin: 0.5em; color: rgb(255, 255, 255); text-align: center; background: rgb(200, 50, 50); line-height: 3em; border-radius: 5px; border: 1px solid rgb(200, 50, 50); width: calc(49% - 1em); cursor: pointer;">
+            清除数据
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

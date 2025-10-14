@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 420px;
+            animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            padding: 45px 0 30px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c3e50;
+            letter-spacing: -0.5px;
+        }
+
+        .login-body {
+            padding: 40px 35px;
+            background: white;
+            border-radius: 0 0 16px 16px;
+        }
+
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            background-color: #fafbfc;
+        }
+
+        .form-group input::placeholder {
+            color: #b0bec5;
+        }
+
+        .form-group input:focus {
+            border-color: #667eea;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+        }
+
+        .form-group input.error {
+            border-color: #f44336;
+            background-color: #ffebee;
+        }
+
+        .form-group input.error:focus {
+            box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.08);
+        }
+
+        .error-message {
+            color: #f44336;
+            font-size: 12px;
+            margin-top: 6px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+            margin-top: 28px;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            transition: left 0.3s ease;
+        }
+
+        .login-btn:hover::before {
+            left: 100%;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.35);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .login-container {
+                border-radius: 16px;
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            }
+
+            .login-header {
+                padding: 35px 0 25px;
+                border-radius: 16px 16px 0 0;
+            }
+
+            .login-header h1 {
+                font-size: 24px;
+            }
+
+            .login-body {
+                padding: 30px 25px;
+                border-radius: 0 0 16px 16px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-group input {
+                padding: 13px 14px;
+                font-size: 16px;
+            }
+
+            .login-btn {
+                padding: 13px;
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .login-header h1 {
+                font-size: 22px;
+            }
+
+            .login-body {
+                padding: 25px 20px;
+            }
+
+            .form-group label {
+                font-size: 13px;
+            }
+
+            .form-group input {
+                padding: 12px 12px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="login-header">
+        <h1>登录</h1>
+    </div>
+    <div class="login-body">
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" placeholder="请输入用户名" autocomplete="username">
+                <div class="error-message" id="usernameError">请输入用户名</div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" autocomplete="current-password">
+                <div class="error-message" id="passwordError">请输入密码</div>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">登录</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // 设置会话Cookie函数（关闭浏览器后自动清除）
+        function setSessionCookie(name, value) {
+            document.cookie = name + "=" + value + ";path=/";
+        }
+
+        // AES256解密函数
+        function decryptAES(ciphertext, key) {
+            const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+            return bytes.toString(CryptoJS.enc.Utf8);
+        }
+
+        // 输入时清除错误提示
+        $('#username, #password').on('input', function() {
+            $(this).removeClass('error');
+            $(this).siblings('.error-message').hide();
+        });
+
+        // 表单提交
+        $('#loginForm').on('submit', function(e) {
+            e.preventDefault();
+
+            // 清除之前的错误
+            $('.error-message').hide();
+            $('input[type="text"], input[type="password"]').removeClass('error');
+
+            var username = $('#username').val().trim();
+            var password = $('#password').val().trim();
+            var isValid = true;
+
+            // 验证用户名
+            if (username === '') {
+                $('#username').addClass('error');
+                $('#usernameError').show();
+                isValid = false;
+            }
+
+            // 验证密码
+            if (password === '') {
+                $('#password').addClass('error');
+                $('#passwordError').show();
+                isValid = false;
+            }
+
+            if (!isValid) {
+                return;
+            }
+
+            // 禁用按钮防止重复提交
+            $('#loginBtn').prop('disabled', true);
+
+            // 从secret.json读取加密的用户名和密码
+            $.ajax({
+                url: 'secret.json',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    try {
+                        // 获取加密密钥
+                        const secretKey = data.key;
+                        let loginSuccess = false;
+
+                        // 遍历所有用户进行验证
+                        for (let i = 0; i < data.users.length; i++) {
+                            const user = data.users[i];
+
+                            // 解密用户名和密码
+                            const decryptedUser = decryptAES(user.user, secretKey);
+                            const decryptedPassword = decryptAES(user.password, secretKey);
+
+                            // 验证登录信息
+                            if (username === decryptedUser && password === decryptedPassword) {
+                                loginSuccess = true;
+                                break;
+                            }
+                        }
+
+                        if (loginSuccess) {
+                            // 将密钥存入会话Cookie（关闭浏览器后自动清除）
+                            setSessionCookie('authKey', secretKey);
+
+                            // 登录成功，直接跳转
+                            window.location.href = 'form.html';
+                        } else {
+                            // 登录失败
+                            $('#loginBtn').prop('disabled', false);
+                            alert('用户名或密码错误！');
+                        }
+                    } catch (error) {
+                        console.error('解密错误:', error);
+                        $('#loginBtn').prop('disabled', false);
+                        alert('登录验证失败，请联系管理员！');
+                    }
+                },
+                error: function() {
+                    $('#loginBtn').prop('disabled', false);
+                    alert('无法加载配置文件，请确保secret.json存在！');
+                }
+            });
+        });
+
+        // Enter键快速登录
+        $('#username, #password').on('keypress', function(e) {
+            if (e.which === 13) {
+                $('#loginForm').submit();
+            }
+        });
+    });
+</script>
+</body>
+</html>
